@@ -73,7 +73,7 @@ var (
 	db   *gorm.DB
 	term = make(chan os.Signal, 1)
 
-	ALERTING_NAME_EN = map[string]string{
+	alertingEN = map[string]string{
 		"1002": "HTTP Code Sum Error(1002)",               // 状态码数量告警
 		"1005": "HTTP Error Code High(1005)",              // 错误状态码告警
 		"1007": "HTTP Code Percentage Error(1007)",        // 状态码占比告警
@@ -179,7 +179,7 @@ func buildAlertmanagerMessage(rule AlertingRule, alert Alerting) *template.Alert
 	result := &template.Alert{
 		StartsAt: startsAt,
 		Labels: template.KV{
-			"alertname":     ALERTING_NAME_EN[alert.Code],
+			"alertname":     alertingEN[alert.Code],
 			"severity":      "critical",
 			"rule_id":       alert.Code,
 			"domain":        rule.Domain,
