@@ -177,7 +177,9 @@ func timeIn(t time.Time, name string) (time.Time, error) {
 func buildAlertmanagerMessage(rule AlertingRule, alert Alerting) *template.Alert {
 	startsAt, _ := timeIn(*alert.StartsAt, "Asia/Shanghai")
 	result := &template.Alert{
+		Status:   "firing",
 		StartsAt: startsAt,
+		EndsAt:   time.Time{},
 		Labels: template.KV{
 			"alertname":     alertingEN[alert.Code],
 			"severity":      "critical",
