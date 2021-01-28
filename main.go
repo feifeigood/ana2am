@@ -25,21 +25,21 @@ var (
 
 // Alerting represents ana alerting table.
 type Alerting struct {
-	ID           int        `gorm:"column:id"`
-	Type         int        `gorm:"column:fm_type"`
-	RuleID       int        `gorm:"column:fm_ruleid"`
-	Code         string     `gorm:"column:fm_itemcode"`
-	THigh        float64    `gorm:"column:fm_thresholdhigh"`
-	TLow         float64    `gorm:"column:fm_thresholdlow"`
-	Unit         string     `gorm:"column:fm_unit"`
-	Value        float64    `gorm:"column:fm_alarmvalue"`
-	StartsAt     *time.Time `gorm:"column:fm_begintime"`
-	UpdateAt     *time.Time `gorm:"column:fm_latelytime"`
-	Total        int        `gorm:"column:fm_alarmtimes"`
-	Status       int        `gorm:"column:fm_alarmstatus"`
-	CustomerID   int        `gorm:"column:fm_ciid"`
-	CustomerName string     `gorm:"column:fm_ciname"`
-	Extra        string     `gorm:"column:fm_extrainfo"`
+	ID           int       `gorm:"column:id"`
+	Type         int       `gorm:"column:fm_type"`
+	RuleID       int       `gorm:"column:fm_ruleid"`
+	Code         string    `gorm:"column:fm_itemcode"`
+	THigh        float64   `gorm:"column:fm_thresholdhigh"`
+	TLow         float64   `gorm:"column:fm_thresholdlow"`
+	Unit         string    `gorm:"column:fm_unit"`
+	Value        float64   `gorm:"column:fm_alarmvalue"`
+	StartsAt     time.Time `gorm:"column:fm_begintime"`
+	UpdateAt     time.Time `gorm:"column:fm_latelytime"`
+	Total        int       `gorm:"column:fm_alarmtimes"`
+	Status       int       `gorm:"column:fm_alarmstatus"`
+	CustomerID   int       `gorm:"column:fm_ciid"`
+	CustomerName string    `gorm:"column:fm_ciname"`
+	Extra        string    `gorm:"column:fm_extrainfo"`
 }
 
 // TableName returns database table name.
@@ -147,7 +147,7 @@ func main() {
 		}
 
 		if resp.Ok != true {
-			log.Println("Request did not return OK")
+			log.Printf("Request did not return OK, Response %d %s\n", resp.StatusCode, resp.String())
 			return
 		}
 
@@ -175,10 +175,11 @@ func timeIn(t time.Time, name string) (time.Time, error) {
 }
 
 func buildAlertmanagerMessage(rule AlertingRule, alert Alerting) *template.Alert {
-	// startsAt, _ := timeIn(, "Asia/Shanghai")
+	// 修复到UTC时间
+	startsAt := alert.StartsAt.Add(time.Duration(-8) * time.Hour)
 	result := &template.Alert{
 		Status:   "firing",
-		StartsAt: *alert.StartsAt,
+		StartsAt: startsAt,
 		Labels: template.KV{
 			"alertname":     alertingEN[alert.Code],
 			"severity":      "critical",
