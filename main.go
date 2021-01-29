@@ -74,13 +74,15 @@ var (
 	term = make(chan os.Signal, 1)
 
 	alertingEN = map[string]string{
-		"1002": "HTTP Code Sum Error(1002)",               // 状态码数量告警
-		"1005": "HTTP Error Code High(1005)",              // 错误状态码告警
-		"1007": "HTTP Code Percentage Error(1007)",        // 状态码占比告警
-		"0302": "Edge Server Bandwidth Error(0302)",       // 带宽故障告警
-		"0304": "Origin Server Bandwidth Rate High(0304)", // 回源环比告警
-		"0401": "Origin Server Bandwidth High(0401)",      // 普通回源告警
-		"0701": "Request Hit Rate Error(0701)",            //命中率告警
+		"1002": "HTTP code too many(1002)",                     // 状态码数量告警
+		"1005": "HTTP code too many(1005)",                     // 错误状态码告警
+		"1006": "Origin server response error code(1006)",      // 回源错误状态码
+		"1007": "HTTP code rate error(1007)",                   // 状态码占比告警
+		"1008": "Origin server response error code rate(1008)", // 回源错误状态码占比告警
+		"0302": "Edge server BW error(0302)",                   // 带宽故障告警
+		"0304": "Origin server BW rate error(0304)",            // 回源环比告警
+		"0401": "Origin server BW too large(0401)",             // 普通回源告警
+		"0701": "Request hit rate error(0701)",                 //命中率告警
 	}
 )
 
@@ -175,6 +177,11 @@ func timeIn(t time.Time, name string) (time.Time, error) {
 }
 
 func buildAlertmanagerMessage(rule AlertingRule, alert Alerting) *template.Alert {
+	if _, ok := alertingEN[alert.Code]; !ok {
+		log.Printf("couldn't parse alerting, code %s\n", alert.Code)
+		return nil
+	}
+
 	// 修复到UTC时间
 	startsAt := alert.StartsAt.Add(time.Duration(-8) * time.Hour)
 	result := &template.Alert{
@@ -200,7 +207,7 @@ func buildAlertmanagerMessage(rule AlertingRule, alert Alerting) *template.Alert
 
 	if alert.Code == "1002" {
 		result.Annotations["description"] = fmt.Sprintf("threshold: gt %.2f%s, VALUE: %.2f%s, http code: %s", rule.THigh, rule.Unit, alert.Value, alert.Unit, rule.ResponseCode)
-	} else if alert.Code == "1005" || alert.Code == "1007" {
+	} else if alert.Code == "1005" || alert.Code == "1007" || alert.Code == "1008" || alert.Code == "1006" {
 		// example: 1600706700:8.670:(6935/79986):410 499:410/6914 499/21
 		extras := strings.Split(alert.Extra, ":")
 		if len(extras) != 5 {
