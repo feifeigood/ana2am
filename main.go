@@ -78,7 +78,7 @@ var (
 		"1005": "HTTP Error Code High(1005)",              // 错误状态码告警
 		"1007": "HTTP Code Percentage Error(1007)",        // 状态码占比告警
 		"0302": "Edge Server Bandwidth Error(0302)",       // 带宽故障告警
-		"0303": "Origin Server Bandwidth D2D Error(0303)", // 回源环比告警
+		"0304": "Origin Server Bandwidth Rate High(0304)", // 回源环比告警
 		"0401": "Origin Server Bandwidth High(0401)",      // 普通回源告警
 		"0701": "Request Hit Rate Error(0701)",            //命中率告警
 	}
@@ -181,12 +181,12 @@ func buildAlertmanagerMessage(rule AlertingRule, alert Alerting) *template.Alert
 		Status:   "firing",
 		StartsAt: startsAt,
 		Labels: template.KV{
-			"alertname":     alertingEN[alert.Code],
-			"severity":      "critical",
-			"rule_id":       alert.Code,
-			"domain":        rule.Domain,
-			"customer":      alert.CustomerName,
-			"to_customer":   "yes",
+			"alertname": alertingEN[alert.Code],
+			"severity":  "critical",
+			"rule_id":   alert.Code,
+			"domain":    rule.Domain,
+			"customer":  alert.CustomerName,
+			// "to_customer":   "yes",
 			"zenlayer_aiop": "yes",
 		},
 		Annotations: template.KV{
@@ -194,9 +194,9 @@ func buildAlertmanagerMessage(rule AlertingRule, alert Alerting) *template.Alert
 		},
 	}
 
-	if strings.Contains(rule.Email, "only_cdn_devops") {
-		result.Labels["to_customer"] = "no"
-	}
+	// if strings.Contains(rule.Email, "only_cdn_devops") {
+	// 	result.Labels["to_customer"] = "no"
+	// }
 
 	if alert.Code == "1002" {
 		result.Annotations["description"] = fmt.Sprintf("threshold: gt %.2f%s, VALUE: %.2f%s, http code: %s", rule.THigh, rule.Unit, alert.Value, alert.Unit, rule.ResponseCode)
@@ -236,11 +236,11 @@ func buildAlertmanagerMessage(rule AlertingRule, alert Alerting) *template.Alert
 				"threshold: (gt %.2f%s || lt -%.2f%s), VALUE: %.2f%s, detail: %s > %sMb/s, %s > %sMb/s",
 				rule.THigh, rule.Unit, rule.TLow, rule.Unit, alert.Value, alert.Unit, t1.Format(time.RFC3339), cpv1[1], t2.Format(time.RFC3339), cpv2[1],
 			)
-	} else if alert.Code == "0303" {
-		result.Labels["to_customer"] = "yes"
+	} else if alert.Code == "0304" || alert.Code == "0401" {
+		// result.Labels["to_customer"] = "yes"
 		result.Annotations["description"] = fmt.Sprintf("threshold: gt %.2f%s, VALUE: %.2f%s", rule.THigh, rule.Unit, alert.Value, alert.Unit)
-	} else if alert.Code == "0401" {
-		result.Annotations["description"] = fmt.Sprintf("threshold: gt %.2f%s, VALUE: %.2f%s", rule.THigh, rule.Unit, alert.Value, alert.Unit)
+		// } else if alert.Code == "0401" {
+		// 	result.Annotations["description"] = fmt.Sprintf("threshold: gt %.2f%s, VALUE: %.2f%s", rule.THigh, rule.Unit, alert.Value, alert.Unit)
 	} else if alert.Code == "0701" {
 		result.Annotations["description"] = fmt.Sprintf("threshold: lt %.2f%s, VALUE: %.2f%s", rule.TLow, rule.Unit, alert.Value, alert.Unit)
 	}
@@ -287,6 +287,30 @@ func getAlertingRule() []AlertingRule {
 	WHERE rfmr.status = ?`, 1).Scan(&results).Error; err != nil {
 		log.Printf("Query alerting rule err: %v\n", err)
 		return nil
+	}
+
+	// hardcode, we need merged
+	tmp1 := []AlertingRule{}
+	if err := db.Raw(
+		`SELECT
+	cmr.id AS rule_id,
+  rfmi.item_code AS rule_code,
+	rfmi.item_name AS rule_name,
+	cmr.bandwidth_proportion AS threshold_high,
+	rfmi.unit AS unit,
+	cmrd.domain_id AS domain_id,
+	cmrd.dni_dname AS domain
+FROM
+	core_monitor_rule AS cmr
+	LEFT JOIN core_monitor_rule_domain AS cmrd ON cmr.id = cmrd.rule_id
+	LEFT JOIN real_flux_monitor_item rfmi ON rfmi.item_code = cmr.rule_name`,
+	).Scan(&tmp1).Error; err != nil {
+		log.Printf("Query alerting rule err: %v\n", err)
+		return nil
+	}
+
+	for _, t := range tmp1 {
+		results = append(results, t)
 	}
 
 	return results
